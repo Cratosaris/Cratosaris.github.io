@@ -1,44 +1,179 @@
-<!DOCTYPE html><html lang="fr"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="fr">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulaire de Présence des Employés</title>
+    <title>Gestion de Présence</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#5D5CDE',
+                        primary: '#5D5CDE'
                     }
                 }
             },
             darkMode: 'class'
         }
     </script>
-    <style>
-        .custom-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .custom-table th, .custom-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        .custom-table th {
-            background-color: #f2f2f2;
-        }
-        .dark .custom-table th {
-            background-color: #333;
-        }
-        .dark .custom-table th, .dark .custom-table td {
-            border-color: #555;
-        }
-    </style>
 </head>
-<body class="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-    <!-- Dark mode detection -->
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-center mb-2">
+                <i class="fas fa-users mr-3 text-primary"></i>
+                Gestion de Présence
+            </h1>
+            <p class="text-center text-gray-600 dark:text-gray-400">
+                Système de gestion des employés et suivi des présences
+            </p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap justify-center mb-8 border-b border-gray-200 dark:border-gray-700">
+            <button class="tab-btn active px-6 py-3 font-medium border-b-2 border-primary text-primary" data-tab="employees">
+                <i class="fas fa-users mr-2"></i>Employés
+            </button>
+            <button class="tab-btn px-6 py-3 font-medium border-b-2 border-transparent hover:text-primary" data-tab="attendance">
+                <i class="fas fa-clipboard-check mr-2"></i>Présence
+            </button>
+            <button class="tab-btn px-6 py-3 font-medium border-b-2 border-transparent hover:text-primary" data-tab="history">
+                <i class="fas fa-history mr-2"></i>Historique
+            </button>
+            <button class="tab-btn px-6 py-3 font-medium border-b-2 border-transparent hover:text-primary" data-tab="export">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+        </div>
+
+        <!-- Employees Tab -->
+        <div id="employees-tab" class="tab-content">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-user-plus mr-2"></i>Ajouter un Employé
+                </h2>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="employee-name" placeholder="Nom de l'employé" 
+                           class="flex-1 px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <input type="text" id="employee-position" placeholder="Poste (optionnel)" 
+                           class="flex-1 px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <button id="add-employee" class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors whitespace-nowrap">
+                        <i class="fas fa-plus mr-2"></i>Ajouter
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-semibold p-6 border-b border-gray-200 dark:border-gray-700">
+                    <i class="fas fa-list mr-2"></i>Liste des Employés (<span id="employee-count">0</span>)
+                </h2>
+                <div id="employees-list" class="p-6">
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-8">Aucun employé ajouté</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Tab -->
+        <div id="attendance-tab" class="tab-content hidden">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-calendar-day mr-2"></i>Appel de Présence
+                </h2>
+                <div class="flex flex-col sm:flex-row gap-4 items-center">
+                    <input type="date" id="attendance-date" class="px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <button id="start-attendance" class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors whitespace-nowrap">
+                        <i class="fas fa-play mr-2"></i>Démarrer l'Appel
+                    </button>
+                    <button id="save-attendance" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap hidden">
+                        <i class="fas fa-save mr-2"></i>Sauvegarder
+                    </button>
+                </div>
+            </div>
+
+            <div id="attendance-list" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hidden">
+                <h3 class="text-lg font-semibold p-6 border-b border-gray-200 dark:border-gray-700">
+                    <i class="fas fa-check-circle mr-2"></i>Marquer les Présences
+                </h3>
+                <div id="attendance-items" class="p-6"></div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history-tab" class="tab-content hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-semibold p-6 border-b border-gray-200 dark:border-gray-700">
+                    <i class="fas fa-history mr-2"></i>Historique des Présences
+                </h2>
+                <div id="history-content" class="p-6">
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-8">Aucun historique disponible</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Tab -->
+        <div id="export-tab" class="tab-content hidden">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <h2 class="text-xl font-semibold mb-4">
+                        <i class="fas fa-file-excel mr-2 text-green-600"></i>Export Excel
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">
+                        Exporter toutes les données de présence dans un fichier Excel structuré.
+                    </p>
+                    <button id="export-excel" class="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Télécharger Excel
+                    </button>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <h2 class="text-xl font-semibold mb-4">
+                        <i class="fas fa-file-word mr-2 text-blue-600"></i>Export Word
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">
+                        Générer un rapport de présence formaté pour Microsoft Word.
+                    </p>
+                    <button id="export-word" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Télécharger Word
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 class="text-lg font-semibold mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>Informations sur l'Export
+                </h3>
+                <div class="grid sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <strong>Employés enregistrés:</strong> <span id="export-employee-count">0</span>
+                    </div>
+                    <div>
+                        <strong>Sessions de présence:</strong> <span id="export-session-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+            <div class="flex items-center mb-4">
+                <i id="modal-icon" class="fas fa-info-circle text-blue-500 mr-3"></i>
+                <h3 id="modal-title" class="text-lg font-semibold"></h3>
+            </div>
+            <p id="modal-message" class="text-gray-700 dark:text-gray-300 mb-4 whitespace-pre-line"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-cancel" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded hidden">Annuler</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-primary text-white hover:bg-opacity-90 rounded">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Dark mode setup
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
         }
@@ -49,183 +184,531 @@
                 document.documentElement.classList.remove('dark');
             }
         });
-    </script>
 
-    <div class="container mx-auto p-4 max-w-4xl">
-        <h1 class="text-3xl font-bold mb-6 text-primary">Formulaire de Présence des Employés</h1>
-        
-        <div class="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <h2 class="text-xl font-semibold mb-4">Informations générales</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="department" class="block mb-1">Département:</label>
-                    <input type="text" id="department" class="w-full p-2 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600" placeholder="Nom du département">
-                </div>
-                <div>
-                    <label for="date" class="block mb-1">Date:</label>
-                    <input type="date" id="date" class="w-full p-2 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600">
-                </div>
-                <div>
-                    <label for="supervisor" class="block mb-1">Superviseur:</label>
-                    <input type="text" id="supervisor" class="w-full p-2 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600" placeholder="Nom du superviseur">
-                </div>
-                <div>
-                    <label for="shift" class="block mb-1">Quart de travail:</label>
-                    <select id="shift" class="w-full p-2 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600">
-                        <option value="morning">Matin</option>
-                        <option value="afternoon">Après-midi</option>
-                        <option value="evening">Soir</option>
-                        <option value="night">Nuit</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        
-        <div class="mb-6">
-            <h2 class="text-xl font-semibold mb-4">Liste de présence</h2>
-            
-            <div class="overflow-x-auto mb-4">
-                <table id="attendanceTable" class="custom-table">
-                    <thead>
-                        <tr>
-                            <th>Nom de l'employé</th>
-                            <th>ID</th>
-                            <th>Heure d'arrivée</th>
-                            <th>Heure de départ</th>
-                            <th>Présent</th>
-                            <th>Retard</th>
-                            <th>Notes</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="employeeRows">
-                        <!-- Les lignes seront ajoutées ici -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <button id="addEmployee" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded">
-                Ajouter un employé
-            </button>
-        </div>
-        
-        <div class="mb-6">
-            <button id="exportButton" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-                Exporter les données (format CSV)
-            </button>
-        </div>
-        
-        <div id="exportOutput" class="hidden mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <h2 class="text-xl font-semibold mb-2">Données exportées (format CSV)</h2>
-            <p class="mb-2 text-sm">Copiez le texte ci-dessous et collez-le dans un fichier Excel (Fichier &gt; Nouveau), puis utilisez l'option "Données &gt; Texte en colonnes &gt; Délimité par virgule":</p>
-            <textarea id="csvOutput" class="w-full h-40 p-2 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600" readonly=""></textarea>
-            <button id="copyButton" class="mt-2 bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded">
-                Copier dans le presse-papiers
-            </button>
-        </div>
-        
-    </div>
+        // Data storage
+        let employees = [];
+        let attendanceHistory = [];
+        let currentAttendance = {};
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set current date
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-            
-            // Add employee row
-            document.getElementById('addEmployee').addEventListener('click', function() {
-                addEmployeeRow();
-            });
-            
-            // Add initial employee row
-            addEmployeeRow();
-            
-            // Export to CSV
-            document.getElementById('exportButton').addEventListener('click', function() {
-                exportToCSV();
-            });
-            
-            // Copy to clipboard
-            document.getElementById('copyButton').addEventListener('click', function() {
-                const csvOutput = document.getElementById('csvOutput');
-                csvOutput.select();
-                try {
-                    // Use the Clipboard API (modern browsers)
-                    navigator.clipboard.writeText(csvOutput.value).then(() => {
-                        alert('Données copiées dans le presse-papiers!');
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie: ', err);
-                    });
-                } catch (err) {
-                    console.error('Erreur lors de la copie: ', err);
+        // Modal functions
+        function showModal(title, message, type = 'info', callback = null) {
+            const modal = document.getElementById('custom-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalIcon = document.getElementById('modal-icon');
+            const modalCancel = document.getElementById('modal-cancel');
+            const modalConfirm = document.getElementById('modal-confirm');
+
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+
+            // Set icon based on type
+            if (type === 'error') {
+                modalIcon.className = 'fas fa-exclamation-triangle text-red-500 mr-3';
+            } else if (type === 'success') {
+                modalIcon.className = 'fas fa-check-circle text-green-500 mr-3';
+            } else if (type === 'confirm') {
+                modalIcon.className = 'fas fa-question-circle text-yellow-500 mr-3';
+                modalCancel.classList.remove('hidden');
+            } else {
+                modalIcon.className = 'fas fa-info-circle text-blue-500 mr-3';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            modalConfirm.onclick = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                modalCancel.classList.add('hidden');
+                if (callback) callback(true);
+            };
+
+            modalCancel.onclick = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                modalCancel.classList.add('hidden');
+                if (callback) callback(false);
+            };
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.dataset.tab;
+                
+                // Update buttons
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('active', 'border-primary', 'text-primary');
+                    b.classList.add('border-transparent');
+                });
+                btn.classList.add('active', 'border-primary', 'text-primary');
+                btn.classList.remove('border-transparent');
+
+                // Update content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                document.getElementById(tabId + '-tab').classList.remove('hidden');
+
+                // Update export stats when switching to export tab
+                if (tabId === 'export') {
+                    updateExportStats();
                 }
             });
         });
-        
-        function addEmployeeRow() {
-            const tbody = document.getElementById('employeeRows');
-            const rowCount = tbody.children.length + 1;
+
+        // Employee management
+        document.getElementById('add-employee').addEventListener('click', addEmployee);
+        document.getElementById('employee-name').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addEmployee();
+        });
+        document.getElementById('employee-position').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addEmployee();
+        });
+
+        function addEmployee() {
+            const nameInput = document.getElementById('employee-name');
+            const positionInput = document.getElementById('employee-position');
+            const name = nameInput.value.trim();
+            const position = positionInput.value.trim();
+
+            if (!name) {
+                showModal('Erreur', 'Veuillez saisir le nom de l\'employé.', 'error');
+                return;
+            }
+
+            if (employees.some(emp => emp.name.toLowerCase() === name.toLowerCase())) {
+                showModal('Erreur', 'Cet employé existe déjà.', 'error');
+                return;
+            }
+
+            const employee = {
+                id: Date.now(),
+                name: name,
+                position: position || 'Non spécifié',
+                dateAdded: new Date().toLocaleDateString('fr-FR')
+            };
+
+            employees.push(employee);
+            nameInput.value = '';
+            positionInput.value = '';
+            renderEmployees();
+            showModal('Succès', 'Employé ajouté avec succès!', 'success');
+        }
+
+        function renderEmployees() {
+            const container = document.getElementById('employees-list');
+            const count = document.getElementById('employee-count');
             
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input type="text" class="employee-name w-full p-1 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600" placeholder="Nom complet"></td>
-                <td><input type="text" class="employee-id w-full p-1 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600" placeholder="ID"></td>
-                <td><input type="time" class="arrival-time w-full p-1 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600"></td>
-                <td><input type="time" class="departure-time w-full p-1 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600"></td>
-                <td><input type="checkbox" class="present-check w-5 h-5" checked></td>
-                <td><input type="checkbox" class="late-check w-5 h-5"></td>
-                <td><input type="text" class="notes w-full p-1 border rounded text-black dark:text-white dark:bg-gray-700 dark:border-gray-600" placeholder="Notes"></td>
-                <td><button class="delete-row bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">X</button></td>
-            `;
-            
-            tbody.appendChild(tr);
-            
-            // Add event listener for delete button
-            tr.querySelector('.delete-row').addEventListener('click', function() {
-                tr.remove();
+            count.textContent = employees.length;
+
+            if (employees.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-8">Aucun employé ajouté</p>';
+                return;
+            }
+
+            container.innerHTML = employees.map(emp => `
+                <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg mb-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-lg">${emp.name}</h3>
+                        <p class="text-gray-600 dark:text-gray-400">${emp.position}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-500">Ajouté le: ${emp.dateAdded}</p>
+                    </div>
+                    <button onclick="removeEmployee(${emp.id})" class="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeEmployee(id) {
+            showModal('Confirmation', 'Êtes-vous sûr de vouloir supprimer cet employé?', 'confirm', (confirmed) => {
+                if (confirmed) {
+                    employees = employees.filter(emp => emp.id !== id);
+                    renderEmployees();
+                    showModal('Succès', 'Employé supprimé avec succès!', 'success');
+                }
             });
         }
-        
-        function exportToCSV() {
-            // Get header row
-            const headerRow = Array.from(document.querySelectorAll('#attendanceTable thead th')).map(th => th.textContent);
-            headerRow.pop(); // Remove the "Actions" column
+
+        // Attendance management
+        document.getElementById('attendance-date').valueAsDate = new Date();
+        document.getElementById('start-attendance').addEventListener('click', startAttendance);
+        document.getElementById('save-attendance').addEventListener('click', saveAttendance);
+
+        function startAttendance() {
+            if (employees.length === 0) {
+                showModal('Erreur', 'Aucun employé enregistré. Ajoutez des employés d\'abord.', 'error');
+                return;
+            }
+
+            const date = document.getElementById('attendance-date').value;
+            if (!date) {
+                showModal('Erreur', 'Veuillez sélectionner une date.', 'error');
+                return;
+            }
+
+            // Check if attendance already exists for this date
+            const existingAttendance = attendanceHistory.find(att => att.date === date);
+            if (existingAttendance) {
+                showModal('Information', 'Une session de présence existe déjà pour cette date. Vous pouvez la modifier.', 'info');
+                // Load existing data into currentAttendance
+                existingAttendance.attendances.forEach(att => {
+                    currentAttendance[att.employeeId] = att.present;
+                });
+            } else {
+                currentAttendance = {}; // Reset for new session
+            }
+
+            const attendanceList = document.getElementById('attendance-list');
+            const attendanceItems = document.getElementById('attendance-items');
             
-            // Get general information
-            const department = document.getElementById('department').value || 'Non spécifié';
-            const date = document.getElementById('date').value || 'Non spécifié';
-            const supervisor = document.getElementById('supervisor').value || 'Non spécifié';
-            const shift = document.getElementById('shift').options[document.getElementById('shift').selectedIndex].text;
-            
-            // Start building CSV content
-            let csvContent = `Département,${department}\n`;
-            csvContent += `Date,${date}\n`;
-            csvContent += `Superviseur,${supervisor}\n`;
-            csvContent += `Quart de travail,${shift}\n\n`;
-            
-            // Add header row
-            csvContent += headerRow.join(',') + '\n';
-            
-            // Get all employee rows
-            const rows = document.querySelectorAll('#employeeRows tr');
-            rows.forEach(row => {
-                const name = row.querySelector('.employee-name').value || '';
-                const id = row.querySelector('.employee-id').value || '';
-                const arrivalTime = row.querySelector('.arrival-time').value || '';
-                const departureTime = row.querySelector('.departure-time').value || '';
-                const present = row.querySelector('.present-check').checked ? 'Oui' : 'Non';
-                const late = row.querySelector('.late-check').checked ? 'Oui' : 'Non';
-                const notes = row.querySelector('.notes').value || '';
+            attendanceItems.innerHTML = employees.map(emp => {
+                const existing = existingAttendance?.attendances.find(att => att.employeeId === emp.id);
+                const isPresent = existing ? existing.present : null;
                 
-                // Add row to CSV content
-                csvContent += `${name},${id},${arrivalTime},${departureTime},${present},${late},${notes}\n`;
-            });
-            
-            // Display CSV output
-            document.getElementById('csvOutput').value = csvContent;
-            document.getElementById('exportOutput').classList.remove('hidden');
+                return `
+                    <div data-employee-id="${emp.id}" class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg mb-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-lg">${emp.name}</h3>
+                            <p class="text-gray-600 dark:text-gray-400">${emp.position}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="markAttendance(${emp.id}, true)" 
+                                    class="present-btn px-4 py-2 rounded-lg transition-colors ${isPresent === true ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}">
+                                <i class="fas fa-check mr-1"></i>Présent
+                            </button>
+                            <button onclick="markAttendance(${emp.id}, false)" 
+                                    class="absent-btn px-4 py-2 rounded-lg transition-colors ${isPresent === false ? 'bg-red-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}">
+                                <i class="fas fa-times mr-1"></i>Absent
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            attendanceList.classList.remove('hidden');
+            document.getElementById('save-attendance').classList.remove('hidden');
         }
+
+        function markAttendance(employeeId, present) {
+            currentAttendance[employeeId] = present;
+            
+            // Find the specific employee's row container
+            const employeeRow = document.querySelector(`[data-employee-id="${employeeId}"]`);
+            if (employeeRow) {
+                const presentBtn = employeeRow.querySelector('.present-btn');
+                const absentBtn = employeeRow.querySelector('.absent-btn');
+                
+                // Reset both buttons to default state
+                [presentBtn, absentBtn].forEach(btn => {
+                    btn.classList.remove('bg-green-600', 'bg-red-600', 'text-white');
+                    btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                });
+
+                // Highlight the selected button
+                if (present) {
+                    presentBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                    presentBtn.classList.add('bg-green-600', 'text-white');
+                } else {
+                    absentBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-300', 'dark:hover:bg-gray-600');
+                    absentBtn.classList.add('bg-red-600', 'text-white');
+                }
+            }
+        }
+
+        function saveAttendance() {
+            const date = document.getElementById('attendance-date').value;
+            
+            // Check if all employees have been marked
+            const unmarkedEmployees = employees.filter(emp => currentAttendance[emp.id] === undefined);
+            if (unmarkedEmployees.length > 0) {
+                showModal('Attention', `${unmarkedEmployees.length} employé(s) n'ont pas été marqués. Ils seront considérés comme absents.`, 'confirm', (confirmed) => {
+                    if (confirmed) {
+                        processSaveAttendance(date);
+                    }
+                });
+                return;
+            }
+            
+            processSaveAttendance(date);
+        }
+
+        function processSaveAttendance(date) {
+            const attendances = employees.map(emp => ({
+                employeeId: emp.id,
+                employeeName: emp.name,
+                present: currentAttendance[emp.id] !== undefined ? currentAttendance[emp.id] : false
+            }));
+
+            // Remove existing attendance for this date
+            attendanceHistory = attendanceHistory.filter(att => att.date !== date);
+            
+            // Add new attendance
+            attendanceHistory.push({
+                date: date,
+                timestamp: new Date().toISOString(),
+                attendances: attendances
+            });
+
+            // Show summary before clearing
+            const presentCount = attendances.filter(att => att.present).length;
+            const absentCount = attendances.length - presentCount;
+            
+            showModal('Succès', `Présences enregistrées avec succès!\n\n${presentCount} présent(s)\n${absentCount} absent(s)`, 'success');
+
+            currentAttendance = {};
+            document.getElementById('attendance-list').classList.add('hidden');
+            document.getElementById('save-attendance').classList.add('hidden');
+            
+            renderHistory();
+        }
+
+        // History rendering
+        function renderHistory() {
+            const container = document.getElementById('history-content');
+            
+            if (attendanceHistory.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-8">Aucun historique disponible</p>';
+                return;
+            }
+
+            container.innerHTML = attendanceHistory
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map(session => {
+                    const presentCount = session.attendances.filter(att => att.present).length;
+                    const totalCount = session.attendances.length;
+                    
+                    return `
+                        <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-semibold text-lg">
+                                    <i class="fas fa-calendar mr-2 text-primary"></i>
+                                    ${new Date(session.date).toLocaleDateString('fr-FR', { 
+                                        weekday: 'long', 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric' 
+                                    })}
+                                </h3>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium ${
+                                    presentCount === totalCount ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                    presentCount === 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                }">
+                                    ${presentCount}/${totalCount} présent${presentCount > 1 ? 's' : ''}
+                                </span>
+                            </div>
+                            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                ${session.attendances.map(att => `
+                                    <div class="flex items-center justify-between p-3 rounded-lg border ${
+                                        att.present 
+                                            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                                            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                                    }">
+                                        <div class="flex-1">
+                                            <span class="text-sm font-medium">${att.employeeName}</span>
+                                            <div class="text-xs ${att.present ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}">
+                                                ${att.present ? 'Présent' : 'Absent'}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <i class="fas ${att.present ? 'fa-check-circle text-green-600' : 'fa-times-circle text-red-600'} text-lg"></i>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        // Export functions
+        function updateExportStats() {
+            document.getElementById('export-employee-count').textContent = employees.length;
+            document.getElementById('export-session-count').textContent = attendanceHistory.length;
+        }
+
+        document.getElementById('export-excel').addEventListener('click', exportToExcel);
+        document.getElementById('export-word').addEventListener('click', exportToWord);
+
+        function exportToExcel() {
+            if (employees.length === 0) {
+                showModal('Erreur', 'Aucune donnée à exporter.', 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            // Employees sheet
+            const employeesData = [
+                ['ID', 'Nom', 'Poste', 'Date d\'ajout'],
+                ...employees.map(emp => [emp.id, emp.name, emp.position, emp.dateAdded])
+            ];
+            const employeesWs = XLSX.utils.aoa_to_sheet(employeesData);
+            XLSX.utils.book_append_sheet(wb, employeesWs, 'Employés');
+
+            // Attendance summary sheet
+            if (attendanceHistory.length > 0) {
+                const summaryData = [['Date', 'Présents', 'Total', 'Taux de présence']];
+                attendanceHistory.forEach(session => {
+                    const presentCount = session.attendances.filter(att => att.present).length;
+                    const totalCount = session.attendances.length;
+                    const rate = Math.round((presentCount / totalCount) * 100);
+                    summaryData.push([session.date, presentCount, totalCount, `${rate}%`]);
+                });
+                const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, summaryWs, 'Résumé');
+
+                // Detailed attendance sheet
+                const detailData = [['Date', 'Employé', 'Poste', 'Statut']];
+                attendanceHistory.forEach(session => {
+                    session.attendances.forEach(att => {
+                        const employee = employees.find(emp => emp.id === att.employeeId);
+                        detailData.push([
+                            session.date,
+                            att.employeeName,
+                            employee ? employee.position : 'N/A',
+                            att.present ? 'Présent' : 'Absent'
+                        ]);
+                    });
+                });
+                const detailWs = XLSX.utils.aoa_to_sheet(detailData);
+                XLSX.utils.book_append_sheet(wb, detailWs, 'Détail Présences');
+            }
+
+            XLSX.writeFile(wb, `presences_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showModal('Succès', 'Fichier Excel téléchargé avec succès!', 'success');
+        }
+
+        function exportToWord() {
+            if (employees.length === 0) {
+                showModal('Erreur', 'Aucune donnée à exporter.', 'error');
+                return;
+            }
+
+            let content = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Rapport de Présence</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        h1 { color: #5D5CDE; text-align: center; border-bottom: 3px solid #5D5CDE; padding-bottom: 10px; }
+        h2 { color: #333; border-bottom: 2px solid #5D5CDE; padding-bottom: 5px; margin-top: 30px; }
+        h3 { color: #555; margin-top: 25px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f4f4f4; font-weight: bold; }
+        .present { background-color: #d4edda; color: #155724; }
+        .absent { background-color: #f8d7da; color: #721c24; }
+        .summary { background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-left: 4px solid #5D5CDE; border-radius: 5px; }
+        .summary strong { color: #5D5CDE; }
+        .center { text-align: center; }
+        .stats { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-item { text-align: center; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>📊 Rapport de Gestion de Présence</h1>
+    <div class="summary">
+        <div class="stats">
+            <div class="stat-item">
+                <strong>Date de génération:</strong><br>
+                ${new Date().toLocaleDateString('fr-FR', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })}
+            </div>
+            <div class="stat-item">
+                <strong>Nombre d'employés:</strong><br>
+                ${employees.length}
+            </div>
+            <div class="stat-item">
+                <strong>Sessions de présence:</strong><br>
+                ${attendanceHistory.length}
+            </div>
+        </div>
+    </div>
+
+    <h2>👥 Liste des Employés</h2>
+    <table>
+        <tr><th>Nom</th><th>Poste</th><th>Date d'ajout</th></tr>
+        ${employees.map(emp => `<tr><td>${emp.name}</td><td>${emp.position}</td><td>${emp.dateAdded}</td></tr>`).join('')}
+    </table>
+`;
+
+            if (attendanceHistory.length > 0) {
+                content += `
+    <h2>📈 Résumé des Présences</h2>
+    <table>
+        <tr><th>Date</th><th>Présents</th><th>Absents</th><th>Total</th><th>Taux de présence</th></tr>
+        ${attendanceHistory.map(session => {
+            const presentCount = session.attendances.filter(att => att.present).length;
+            const totalCount = session.attendances.length;
+            const absentCount = totalCount - presentCount;
+            const rate = Math.round((presentCount / totalCount) * 100);
+            return `<tr>
+                <td>${new Date(session.date).toLocaleDateString('fr-FR')}</td>
+                <td class="center">${presentCount}</td>
+                <td class="center">${absentCount}</td>
+                <td class="center">${totalCount}</td>
+                <td class="center"><strong>${rate}%</strong></td>
+            </tr>`;
+        }).join('')}
+    </table>
+
+    <h2>📋 Détail des Présences</h2>
+    ${attendanceHistory.map(session => `
+        <h3>📅 Présences du ${new Date(session.date).toLocaleDateString('fr-FR', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        })}</h3>
+        <table>
+            <tr><th>Employé</th><th>Poste</th><th>Statut</th></tr>
+            ${session.attendances.map(att => {
+                const employee = employees.find(emp => emp.id === att.employeeId);
+                return `<tr class="${att.present ? 'present' : 'absent'}">
+                    <td>${att.employeeName}</td>
+                    <td>${employee ? employee.position : 'N/A'}</td>
+                    <td class="center"><strong>${att.present ? '✅ Présent' : '❌ Absent'}</strong></td>
+                </tr>`;
+            }).join('')}
+        </table>
+    `).join('')}
+`;
+            }
+
+            content += `
+    <div class="summary" style="margin-top: 40px;">
+        <p style="text-align: center; color: #666; font-style: italic;">
+            Rapport généré automatiquement par le système de gestion de présence
+        </p>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([content], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rapport_presences_${new Date().toISOString().split('T')[0]}.doc`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showModal('Succès', 'Fichier Word téléchargé avec succès!', 'success');
+        }
+
+        // Initialize
+        renderEmployees();
+        renderHistory();
+        updateExportStats();
     </script>
-
-
-</body></html>
+</body>
+</html>
